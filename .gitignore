@@ -1,0 +1,21 @@
+# Large directories managed by install script
+ardupilot/
+ardupilot_gazebo/
+qgc/
+ros2_humble/
+
+# Simulation artifacts
+*.tlog
+*.tlog.raw
+*.parm
+*.BIN
+*.bin
+eeprom.bin
+mav.parm
+
+# Logs
+install_log.txt
+*.log
+
+# Temp files
+.bashrc.bak.*
