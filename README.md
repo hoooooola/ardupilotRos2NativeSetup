@@ -94,6 +94,11 @@ ros2 topic echo /imu
 *   [ ] 設定 `ros_gz_bridge` 轉發影像話題。
 *   [ ] 使用 OpenCV 或是 YOLO 進行物體識別。
 
+### Level 4: ROS 數據紀錄與分析 (Rosbag & Analysis)Foxglove Studio
+*   [ ] 使用 `rosbag record` 紀錄模擬器數據。
+*   [ ] 使用 `rosbag info` 查看 Rosbag 檔案。
+*   [ ] 使用 `rosbag play` 播放 Rosbag 檔案。
+
 ---
 
 ## 📂 檔案清單

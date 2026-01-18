@@ -60,10 +60,18 @@ if [ -z "$TMUX" ]; then
     tmux send-keys -t native_sim:0.1 "export QT_QPA_PLATFORM=xcb" C-m
     tmux send-keys -t native_sim:0.1 "ign gazebo -v 4 -r /media/user/Linux_Extra/workspaces/ardupilot_gazebo/worlds/iris_arducopter_runway.world" C-m
 
-    # Pane 2: ROS 2 Bridge (Ready to run)
+    # Pane 2: ROS 2 Bridge
     tmux split-window -v -t native_sim:0.1
     tmux send-keys -t native_sim:0.2 "source /opt/ros/humble/setup.bash" C-m
     tmux send-keys -t native_sim:0.2 "ros2 run ros_gz_bridge parameter_bridge --ros-args -p config_file:=/media/user/Linux_Extra/workspaces/ros_gz_bridge.yaml" C-m
+
+    # Pane 3: Shape Detector (AI Vision) - 在左側 SITL 下方分割
+    tmux split-window -v -t native_sim:0.0
+    tmux send-keys -t native_sim:0.1 "source /opt/ros/humble/setup.bash && sleep 8 && python3 /media/user/Linux_Extra/workspaces/ros2_scripts/shape_detector.py" C-m
+
+    # Pane 4: H.264 Video Streamer to QGC - 在 Shape Detector 下方分割
+    tmux split-window -v -t native_sim:0.1
+    tmux send-keys -t native_sim:0.2 "source /opt/ros/humble/setup.bash && sleep 10 && python3 /media/user/Linux_Extra/workspaces/ros2_scripts/annotated_streamer_h264.py" C-m
 
     # Attach
     tmux attach-session -t native_sim
