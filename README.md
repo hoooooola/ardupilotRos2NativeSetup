@@ -103,4 +103,78 @@ ros2 topic echo /imu
 *   `NativeROS2Dev.md`: 本說明文件。
 
 ---
+
+## 🎓 實做練習 (Phase 2 Exercises)
+
+現在您已經有一個穩定的開發環境，請嘗試完成以下練習以熟悉操作流程：
+
+### 練習 1: 基礎飛行操作 (QGroundControl)
+無需撰寫程式碼，先熟悉 GCS (地面站) 操作。
+1.  **切換模式**: 在 QGC 頂部工具列點擊 "Flight Mode"，嘗試切換 `Loiter` (停懸), `PosHold` (定點), `Land` (降落)。
+2.  **自動任務 (Auto Mission)**:
+    *   切換到 **Plan** 視圖。
+    *   點擊地圖設定 3-4 個 Waypoint (航點)。
+    *   設定高度 (例如 5m)。
+    *   點擊 **Upload** 上傳任務。
+    *   回到 **Fly** 視圖，解鎖 (Arm) -> 切換至 `Auto` 模式，觀察飛機依路徑飛行。
+
+### 練習 2: ROS 2 數據監控 (Data Observation)
+確認模擬器物理數據能否傳遞至 ROS 2 層。
+1.  啟動模擬 (`./native_sim_launch.sh`)。
+2.  開啟新終端機，監聽 IMU 數據：
+    ```bash
+    source /opt/ros/humble/setup.bash
+    ros2 topic echo /imu
+    ```
+    *觀察*: 確認 `linear_acceleration` 和 `angular_velocity` 數值是否隨飛機姿態變動。
+3.  查看時鐘 (Clock) 同步：
+    ```bash
+    ros2 topic echo /clock
+    ```
+    *觀察*: 確認 `sim_time` 是否正常增加。
+
+### 練習 3: 進階控制準備 (Offboard Control)
+目標是讓外部程式 (ROS 2 Node) 控制飛機，而非僅用遙控器或 QGC。
+*   此階段需要修改 `ros_gz_bridge.yaml`，加入指令相關的 Topic (如 `/cmd_vel` 或 `/quaternion`)。
+*   這是進入自動駕駛開發的關鍵一步。
+
+
+
+
+
+### 系統架構圖 (System Architecture)
+這張圖解釋了為什麼 `rqt_graph` 只看得到一部分：
+
+```mermaid
+graph TD
+    subgraph "Gazebo (模擬世界)"
+        A[無人機物理模型] 
+        note1[產生真實物理數據<br>例如：撞地板瞬間]
+    end
+
+    subgraph "SITL"
+        FlightCode[ArduPilot 韌體]
+    end
+
+    subgraph "Bridge (翻譯官)"
+        B[ros_gz_bridge]
+    end
+
+    subgraph "ROS 2 系統 (您的程式)"
+        C[imu_monitor.py]
+        note2[邏輯判斷中心]
+    end
+
+    A -- "Ignition Topics (/imu)" --> B
+    B -- "ROS Topics (/imu)" --> C
+    FlightCode -- MAVLink --> A
+    
+    style A fill:#f9f,stroke:#333
+    style C fill:#bbf,stroke:#333
+    style B fill:#bfb,stroke:#333
+```
+*   **藍色區塊** (`imu_monitor`) 與 **綠色區塊** (`ros_gz_bridge`) 是 `rqt_graph` 看得到的。
+*   **ArduPilot** 與 **Gazebo內部** 對 ROS 工具來說是隱形的。
+
+---
 **Enjoy your flight! ✈️**

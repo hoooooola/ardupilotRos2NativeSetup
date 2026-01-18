@@ -1,0 +1,18 @@
+{
+    "git.ignoredRepositories": [
+        "ardupilot/modules/DroneCAN/DSDL",
+        "ardupilot/modules/DroneCAN/dronecan_dsdlc",
+        "ardupilot/modules/DroneCAN/libcanard",
+        "ardupilot/modules/DroneCAN/pydronecan",
+        "ardupilot/modules/Micro-CDR",
+        "ardupilot/modules/Micro-XRCE-DDS-Client",
+        "ardupilot/modules/gbenchmark",
+        "ardupilot/modules/gsoap",
+        "ardupilot/modules/gtest",
+        "ardupilot/modules/lwip",
+        "ardupilot/modules/mavlink",
+        "ardupilot/modules/waf",
+        "ardupilot/modules/ChibiOS",
+        "ardupilot/modules/CrashDebug"
+    ]
+}
