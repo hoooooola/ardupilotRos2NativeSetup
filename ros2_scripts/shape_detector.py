@@ -33,7 +33,7 @@ class ShapeDetector(Node):
         self.get_logger().info('Publishing to: /detections, /camera/annotated')
         
     def detect_shapes(self, image):
-        """使用 OpenCV 偵測形狀"""
+        """使用 OpenCV 偵測形狀 - 高信心度版本"""
         # 轉灰階
         gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
         
@@ -42,15 +42,15 @@ class ShapeDetector(Node):
         gray = clahe.apply(gray)
         
         # 高斯模糊
-        blurred = cv2.GaussianBlur(gray, (5, 5), 0)
+        blurred = cv2.GaussianBlur(gray, (7, 7), 0)
         
-        # Canny 邊緣偵測 (降低閾值以偵測更多邊緣)
-        edges = cv2.Canny(blurred, 30, 100)
+        # Canny 邊緣偵測
+        edges = cv2.Canny(blurred, 40, 120)
         
         # 形態學操作 - 閉合邊緣
         kernel = np.ones((3,3), np.uint8)
-        edges = cv2.dilate(edges, kernel, iterations=1)
-        edges = cv2.erode(edges, kernel, iterations=1)
+        edges = cv2.dilate(edges, kernel, iterations=2)
+        edges = cv2.erode(edges, kernel, iterations=2)
         
         # 尋找輪廓
         contours, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
@@ -59,13 +59,37 @@ class ShapeDetector(Node):
         annotated = image.copy()
         
         for contour in contours:
-            # 降低面積閾值,接受更小的物體
+            # ===== 過濾條件 1: 面積閾值 =====
             area = cv2.contourArea(contour)
-            if area < 100:  # 從 500 降到 100
+            if area < 500:  # 提高到 500,過濾小雜訊
                 continue
             
-            # 計算周長和近似多邊形
+            # ===== 過濾條件 2: 面積上限 =====
+            # 過濾過大的區域 (可能是背景或錯誤偵測)
+            image_area = image.shape[0] * image.shape[1]
+            if area > image_area * 0.8:  # 超過畫面 80% 的物體
+                continue
+            
+            # ===== 過濾條件 3: 輪廓長度 =====
             perimeter = cv2.arcLength(contour, True)
+            if perimeter < 50:  # 周長太小
+                continue
+            
+            # ===== 過濾條件 4: 凸包檢測 =====
+            # 計算凸包,檢查輪廓的凸性
+            hull = cv2.convexHull(contour)
+            hull_area = cv2.contourArea(hull)
+            if hull_area == 0:
+                continue
+            
+            solidity = area / hull_area  # 實心度
+            if solidity < 0.7:  # 太不規則的形狀
+                continue
+            
+            # ===== 過濾條件 5: 圓形度檢查 =====
+            circularity = 4 * np.pi * area / (perimeter * perimeter)
+            
+            # 計算近似多邊形
             approx = cv2.approxPolyDP(contour, 0.04 * perimeter, True)
             
             # 計算中心點
@@ -74,44 +98,76 @@ class ShapeDetector(Node):
                 cx = int(M["m10"] / M["m00"])
                 cy = int(M["m01"] / M["m00"])
             else:
-                cx, cy = 0, 0
+                continue  # 無效的輪廓
             
-            # 辨識形狀
+            # ===== 形狀辨識與信心度計算 =====
             vertices = len(approx)
             shape = "unknown"
+            confidence = 0.0
             color = (0, 255, 0)  # 綠色
             
             if vertices == 3:
                 shape = "triangle"
+                confidence = 0.9 if solidity > 0.85 else 0.7
                 color = (0, 255, 255)  # 黃色
+                
             elif vertices == 4:
                 # 檢查是否為正方形或矩形
                 x, y, w, h = cv2.boundingRect(approx)
                 aspect_ratio = float(w) / h
-                shape = "square" if 0.95 <= aspect_ratio <= 1.05 else "rectangle"
+                
+                if 0.9 <= aspect_ratio <= 1.1:
+                    shape = "square"
+                    confidence = 0.9 if 0.95 <= aspect_ratio <= 1.05 else 0.75
+                else:
+                    shape = "rectangle"
+                    confidence = 0.85 if solidity > 0.85 else 0.7
                 color = (255, 0, 0)  # 藍色
+                
             elif vertices == 5:
                 shape = "pentagon"
+                confidence = 0.8 if solidity > 0.85 else 0.65
                 color = (255, 255, 0)  # 青色
+                
             elif vertices == 6:
                 shape = "hexagon"
+                confidence = 0.8 if solidity > 0.85 else 0.65
                 color = (255, 0, 255)  # 洋紅色
-            else:
+                
+            elif vertices > 8:
                 # 圓形 (多邊形頂點很多)
-                shape = "circle"
-                color = (0, 0, 255)  # 紅色
+                if circularity > 0.7:  # 圓形度高
+                    shape = "circle"
+                    confidence = min(circularity, 0.95)
+                    color = (0, 0, 255)  # 紅色
+                else:
+                    continue  # 不規則形狀,跳過
+            else:
+                # 其他形狀,信心度較低
+                continue
             
-            # 繪製輪廓和標籤
+            # ===== 過濾條件 6: 最低信心度閾值 =====
+            MIN_CONFIDENCE = 0.65  # 最低信心度 65%
+            if confidence < MIN_CONFIDENCE:
+                continue
+            
+            # ===== 繪製輪廓和標籤 =====
             cv2.drawContours(annotated, [approx], -1, color, 3)
             cv2.circle(annotated, (cx, cy), 5, color, -1)
-            cv2.putText(annotated, shape, (cx - 40, cy - 10),
+            
+            # 顯示形狀名稱和信心度
+            label = f"{shape} {confidence:.0%}"
+            cv2.putText(annotated, label, (cx - 50, cy - 10),
                        cv2.FONT_HERSHEY_SIMPLEX, 0.6, color, 2)
             
             # 記錄偵測結果
             detections.append({
                 "shape": shape,
+                "confidence": float(confidence),
                 "vertices": vertices,
                 "area": float(area),
+                "circularity": float(circularity),
+                "solidity": float(solidity),
                 "center": {"x": cx, "y": cy},
                 "color": color
             })
@@ -130,7 +186,7 @@ class ShapeDetector(Node):
             if detections:
                 detection_msg = String()
                 detection_msg.data = json.dumps({
-                    "timestamp": self.get_clock().now().to_msg(),
+                    "frame": self.frame_count,
                     "detections": detections,
                     "count": len(detections)
                 })
