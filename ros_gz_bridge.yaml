@@ -3,8 +3,7 @@
   gz_type_name: ignition.msgs.Clock
   direction: GZ_TO_ROS
 
-- topic_name: /imu
-  ros_topic_name: /imu
+- ros_topic_name: /imu
   gz_topic_name: /world/iris_arducopter_runway/model/iris/link/imu_link/sensor/imu_sensor/imu
   ros_type_name: sensor_msgs/msg/Imu
   gz_type_name: ignition.msgs.IMU

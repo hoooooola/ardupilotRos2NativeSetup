@@ -53,6 +53,11 @@ if [ -z "$TMUX" ]; then
     # Pane 1: Gazebo (Physics)
     tmux split-window -h -t native_sim:0
     tmux send-keys -t native_sim:0.1 "source ~/.bashrc" C-m
+    # Explicitly set critical rendering and comms variables
+    tmux send-keys -t native_sim:0.1 "export IGN_RENDER_ENGINE=ogre2" C-m
+    tmux send-keys -t native_sim:0.1 "export IGN_IP=127.0.0.1" C-m
+    tmux send-keys -t native_sim:0.1 "export IGN_PARTITION=sim" C-m
+    tmux send-keys -t native_sim:0.1 "export QT_QPA_PLATFORM=xcb" C-m
     tmux send-keys -t native_sim:0.1 "ign gazebo -v 4 -r /media/user/Linux_Extra/workspaces/ardupilot_gazebo/worlds/iris_arducopter_runway.world" C-m
 
     # Pane 2: ROS 2 Bridge (Ready to run)
@@ -83,7 +88,7 @@ if [ "$1" == "--child-sitl" ]; then
     
     # 2026-01-17 Fixes for Ubuntu 22.04 Wayland + Fortress
     export QT_QPA_PLATFORM=xcb
-    export IGN_RENDER_ENGINE=ogre
+    export IGN_RENDER_ENGINE=ogre2
     export IGN_IP=127.0.0.1
     export IGN_PARTITION=sim
 
