@@ -178,3 +178,29 @@ graph TD
 
 ---
 **Enjoy your flight! ✈️**
+
+### 實作里程碑 (Milestones)
+
+#### ✅ Phase 2: 自動飛行控制 (Offboard Control)
+我們成功實作了第一個 Python 控制腳本 `ros2_scripts/mission_control.py`，實現了自動起降任務。
+
+**核心架構 (Key Concepts)**:
+1.  **通訊鏈路**: Python Script -> ROS 2 Service -> MAVROS -> UDP -> ArduPilot SITL。
+2.  **模式切換**: 必須先將飛控切換至 `GUIDED` 模式，才能接受外部電腦指令。
+3.  **狀態流程**: 連線 -> 解鎖 (Arm) -> 起飛 (Takeoff) -> 懸停 (Hover) -> 降落 (Land)。
+
+**執行指令**:
+```bash
+# 1. 啟動模擬器
+./native_sim_launch.sh
+# 2. (在 SITL 視窗輸入 'output add 127.0.0.1:14551')
+
+# 3. 啟動 MAVROS (UDP Server Mode)
+ros2 run mavros mavros_node --ros-args -p fcu_url:=udp://:14551@
+
+# 4. 執行任務腳本
+python3 ros2_scripts/mission_control.py
+```
+
+---
+**Enjoy your flight! ✈️**
