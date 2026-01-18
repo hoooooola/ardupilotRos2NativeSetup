@@ -8,3 +8,9 @@
   ros_type_name: sensor_msgs/msg/Imu
   gz_type_name: ignition.msgs.IMU
   direction: GZ_TO_ROS
+
+- topic_name: /camera/image_raw
+  ros_type_name: sensor_msgs/msg/Image
+  gz_type_name: ignition.msgs.Image
+  direction: GZ_TO_ROS
+
