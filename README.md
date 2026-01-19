@@ -111,6 +111,7 @@ workspaces/
    - ArduPilot SITL 飛行控制
    - Gazebo Fortress 物理模擬
    - QGroundControl 地面站
+   - USB Joystick 支援 (TX16S/EdgeTX)
 
 2. **ROS 2 整合**
    - Gazebo ↔ ROS 2 數據橋接
@@ -126,6 +127,7 @@ workspaces/
    - H.264 編碼
    - UDP 低延遲串流
    - QGC 即時顯示
+   - ⚠️ 待辦: Joystick CH5/6 映射設定
 
 ### 🚧 可擴展功能
 
