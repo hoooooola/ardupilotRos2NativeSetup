@@ -20,6 +20,12 @@
 - ✅ H.264 視訊串流 (到 QGC)
 - ✅ QGroundControl (地面控制站)
 
+### kill server
+```bash
+tmux kill-server
+killall -9 ign gazebo ruby sim_vehicle.py python3
+```
+
 ### 檢查系統狀態
 
 ```bash
