@@ -88,10 +88,92 @@ PX4 中模組有兩種執行方式：
 
 - `top`: 只能看到工作佇列本身 (例如 `wq:lp_default`)。
 - `work_queue status`: 使用此指令來顯示所有活動的工作佇列項目。
----
-## Controller Diagrams 
-- [專業術語](https://docs.px4.io/main/en/contribute/notation#terminology)
 
+---
+
+## 6. Controller Diagrams 
+- [核心術語](https://docs.px4.io/main/en/contribute/notation#terminology)
+    - 粗體變數表示向量或矩陣，非粗體變數表示標量
+
+### 1. 空氣動力學 (Aerodynamics)
+決定 FW (固定翼) 飛行穩定性的關鍵指標：
+- **AOA (Angle of Attack / 攻角 $\alpha$)**: 翼弦線與相對風向之間的夾角。攻角過大會導致「失速」。
+- **AOS (Angle of Sideslip / 側滑角 $\beta$)**: 機身中心線與相對風向的側向夾角 (即飛機是否「橫著飛」)。
+
+![alt text](image-14.png)
+
+### 2. 座標系統 (Coordinate Systems)
+![alt text](image-16.png)
+| 縮寫 | 全稱 | 參考基準 | 軸向說明 |
+| :--- | :--- | :--- | :--- |
+| **FRD** | Front-Right-Down | 機身 (Body) | **X 朝前**、**Y 朝右**、**Z 朝下**。感測器計）。 |
+| **NED** | North-East-Down | 地球 (World) | **X 朝北**、**Y 朝東**、**Z 朝地心**。 GPS 定位與導航。 |
+
+> 💡 **小提醒**: 在這些系統中，**Z 軸向下為正**。這意味著如果無人機上升 (Altitude 增加)，它的 Z 軸座標數值實際上是在 **「減小」** (變負)。
+
+**控制邏輯**:
+*   **PID**: 最基礎的控制演算法。透過 比例 (P)、積分 (I) 與 微分 (D) 來修正飛行誤差。
+*   **MCPC (MultiCopter Position Controller)**: 負責控制多旋翼「位置」的模組。
+*   **MPC (Model Predictive Control)**: SLAM, Path Planning, 一種更進階的控制方式（模型預測控制），PX4 在某些高階路徑規劃中會用到。   
+
+### Symbols
+
+
+![alt text](image-18.png)
+
+#### 座標與運動學 (Coordinates & Kinematics)
+| 變數 (Variable) | 描述 (Description) |
+| :--- | :--- |
+| $x, y, z$ | 沿 x, y, z 軸的位移 (Translation along coordinate axis)。 |
+| $\boldsymbol{\mathrm{r}}$ | Position vector: $\boldsymbol{\mathrm{r}} = [x \quad y \quad z]^{T}$ |
+| $\boldsymbol{\mathrm{v}}$ | Velocity vector: $\boldsymbol{\mathrm{v}} = \boldsymbol{\mathrm{\dot{r}}}$ |
+| $\boldsymbol{\mathrm{a}}$ | Acceleration vector: $\boldsymbol{\mathrm{a}} = \boldsymbol{\mathrm{\dot{v}}} = \boldsymbol{\mathrm{\ddot{r}}}$ |
+| $\phi, \theta, \psi$ | Euler angles: $\phi$ roll (=Bank), $\theta$ pitch, $\psi$ yaw(=Heading) |
+| $\Psi$ | Attitude vector: $\Psi = [\phi \quad \theta \quad \psi]^T$ |
+| $p, q, r$ | Angular rates around body axis. |
+| $\boldsymbol{\omega}^b$ | Angular rate vector in body frame: $\boldsymbol{\omega}^b = [p \quad q \quad r]^T$ |
+| $\boldsymbol{\mathrm{q}}$ | 四元數的向量部分 (Vector part of Quaternion)。 |
+| $\boldsymbol{\mathrm{\tilde{q}}}$ | 哈密頓姿態四元數 (Hamiltonian attitude quaternion)。 |
+| $\boldsymbol{\mathrm{R}}_\ell^b$ | 旋轉矩陣 (Rotation matrix): 將向量從 $\ell$ 座標系轉至 $b$ 座標系 ($\boldsymbol{\mathrm{v}}^b = \boldsymbol{\mathrm{R}}_\ell^b \boldsymbol{\mathrm{v}}^\ell$)。 |
+| $\boldsymbol{\mathrm{x}}$ | 通用狀態向量 (General state vector)。 |
+
+#### 力與力矩 (Forces & Moments)
+| 變數 (Variable) | 描述 (Description) |
+| :--- | :--- |
+| $X, Y, Z$ | 沿 x, y, z 軸的受力 (Forces along coordinate axis)。 |
+| $\boldsymbol{\mathrm{F}}$ | Force vector: $\boldsymbol{\mathrm{F}}= [X \quad Y \quad Z]^T$ |
+| $l, m, n$ | 繞 x, y, z 軸的力矩 (Moments around coordinate axis)。 |
+| $\boldsymbol{\mathrm{M}}$ | 力矩向量 (Moment vector): $\boldsymbol{\mathrm{M}} = [l \quad m \quad n]^T$ |
+| $g$ | 重力加速度 (Gravity)。 |
+
+#### 空氣動力與氣流 (Aerodynamics & Wind)
+| 變數 (Variable) | 描述 (Description) |
+| :--- | :--- |
+| $\alpha$ | 攻角 (Angle of attack, AOA)。 |
+| $\beta$ | 側滑角 (Angle of sideslip, AOS)。 |
+| $L$ | 升力 (Lift force)。 |
+| $D$ | 阻力 (Drag force)。 |
+| $C$ | 側風力 (Cross-wind force)。 |
+| $w$ | 風速 (Wind velocity)。 |
+| $M$ | 馬赫數 (Mach number)。在縮比模型飛機中通常可忽略。 |
+
+#### 機體幾何與控制 (Geometry & Control)
+| 變數 (Variable) | 描述 (Description) |
+| :--- | :--- |
+| $b$ | 翼展 (Wing span, 翼尖到翼尖的距離)。 |
+| $S$ | 機翼面積 (Wing area)。 |
+| $c$ | 翼弦長 (Wing chord length)。 |
+| $AR$ | 展弦比 (Aspect ratio): $AR = b^2/S$ |
+| $\Lambda$ | 前緣後掠角 (Leading-edge sweep angle)。 |
+| $\lambda$ | 梢根比 (Taper ratio): $\lambda = c_{tip}/c_{root}$ |
+| $\delta$ | 氣動控制面偏轉角 (Control surface deflection)。正偏轉產生負力矩。 |
+
+---
+
+
+
+
+### 3. 控制架構 (Control Architecture)
 Multicopter Control Architecture
 ![alt text](image-9.png)
 
