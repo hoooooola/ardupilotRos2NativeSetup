@@ -199,6 +199,17 @@ PX4 中模組有兩種執行方式：
 ### 3. 控制架構 (Control Architecture)
 Multicopter Control Architecture
 ![alt text](image-9.png)
+
+| 符號 (Symbol) | 描述 (Description) |
+| :--- | :--- |
+| $\mathbf{r}_{sp}$ | Position Setpoint (位置設定值)。由導航邏輯或搖桿輸入產生。 |
+| $\mathbf{v}_{sp}$ | Velocity Setpoint (速度設定值)。位置控制器的輸出。 |
+| $\mathbf{a}_{sp}$ | Acceleration Setpoint (加速度設定值)。速度控制器的輸出。 |
+| $\mathbf{q}_{sp}$ | Attitude Quaternion Setpoint (姿態四元數設定值)。由加速度轉換而來。 |
+| $T_{sp}$ | Thrust Setpoint (推力設定值)。由**速度控制器**輸出的加速度轉換而來 (不經過姿態 PID)，直接傳遞至混控器。 |
+| $\boldsymbol{\Omega}_{sp}$ | Angular Rate Setpoint (角速率設定值)。姿態控制器的輸出。 |
+| $\boldsymbol{\delta}$ | Normalized Torque/Thrust (歸一化力矩與推力)。角速率控制器的輸出, 送給mixer輸出pwm/dshot需要的數值。 |
+| $\mathbf{u}$ | Actuator Outputs (致動器輸出)。經由混控器 (Mixer) 分配後的 PWM 訊號。 |
 #### [discussion about controller PID, update rate](https://discuss.px4.io/t/multicopter-control-architecture-design-choices/31815)
 
 這是一份針對自動化工程背景整理的重點筆記。我們從**頻寬設計（Bandwidth & Sampling）**與**控制架構（Topology）**兩個核心面向，解析為何無人機控制採用這種設計。
@@ -360,9 +371,11 @@ $$
     - 雖然圖中未畫出，但 PX4 的實作包含一個直接路徑：$\text{Output} = PID + (\text{Setpoint} \times \text{Gain}_{ff})$。
     - **作用**: PID 是「看到誤差才修正」（反應式）；FF 是「預判需求直接輸出」（預測式）。
     - 透過 FF 提供大部分所需的力矩，P 值只需處理模型誤差與擾動，這大幅提升了追蹤的響應速度 (Latency)。
+
+    $\delta_{A_{sp}}$ 就是一個 控制量佔比。它最終會被 Mixer 換算成各個馬達具體的 PWM 寬度 (例如 1000us - 2000us) 或 DShot 數字值。
 ---
 
-Multicopter Attitude Controller
+## Multicopter Attitude Controller
 ![alt text](image-11.png)
 
 > **核心概念**: 比對「目標姿態」與「目前姿態」，並計算出應該以多快的「角速率」來修正。
@@ -370,15 +383,34 @@ Multicopter Attitude Controller
 #### 1. 核心符號介紹 (Key Symbols)
 | 符號 | 定義 | 說明 |
 | :--- | :--- | :--- |
-| **$q_{sp}$** | Quaternion Setpoint | 目標姿態（四元數表示）。 |
+| **$q_{sp}$** | Quaternion Setpoint | 目標姿態（四元數表示）。<br>**注意**: 四元數是數學上的 4 個參數 (w,x,y,z) 用來描述旋轉角度，**與「四軸飛行器」或「四顆馬達」完全無關**。任何飛行器 (直升機、定翼機) 都使用四元數運算。 |
 | **$q$** | Current Quaternion | 目前飛行器的實際姿態。 |
-| **$q_e$** | Error Quaternion | 姿態誤差。使用四元數是為了避免「吉姆保鎖 (Gimbal Lock)」問題。 |
+| **$q_e$** | Error Quaternion | 姿態誤差。使用四元數是為了避免「萬向節鎖 (Gimbal Lock)」數學奇異點問題。 |
 | **$q_{0e}, q_{je}$** | Scalar & Vector Parts | 四元數的實部 (旋轉角度大小) 與 虛部 (旋轉軸方向)。 |
 | **sgn** | Sign Function | 符號函數。確保旋轉路徑是**最短路徑**（防止飛機為了修正 10 度卻反向轉了 350 度）。 |
 | **2P** | Proportional Gain | 姿態環的比例增益。注意這裡只有 P 項，因積分項由下層速率環處理。 |
 | **$\Omega_{sp}$** | Rate Setpoint | 輸出的「目標角速率」。這會直接輸入到 Rate Controller。 |
 
-#### 2. 運作流程介紹 (Workflow)
+#### 2. 圖解細節 (Diagram Deep Dive)
+這張圖描述了如何將 **姿勢誤差 (Quaternion Error)** 轉換為 **角速率命令 (Rate Setpoint)**。
+
+1.  **Extract Magnitude ($q_{0e}$)**:
+    *   提取四元數的 **實部 (Scalar part, w)**。
+    *   數學上等於 $\cos(\theta/2)$。用來判斷旋轉角度是否超過 180 度。
+    *   **單位**: 無單位 (Dimensionless)。
+2.  **Extract Component ($q_{je}$)**:
+    *   提取四元數的 **虛部向量 (Vector part, xyz)**。
+    *   數學上等於 $\vec{u} \sin(\theta/2)$。
+    *   **單位**: 無單位。
+3.  **$\times$ (乘號) 與 sgn**: **最短路徑邏輯 (Shortest Path)**。
+    *   四元數特性：$q$ 與 $-q$ 代表相同姿態。
+    *   若 $q_{0e} < 0$ (繞遠路)，`sgn` 輸出 -1，將 $q_{je}$ 反向，強制走近路修正誤差。
+4.  **$2P$ (Gain)**:
+    *   **為什麼乘 2?**: 四元數虛部在小角度約為 $\theta/2$。乘 2 是為了還原成對應 **角度 $\theta$** 的物理量。
+    *   **P**: 比例增益 (如參數 `MC_ROLL_P`)，單位 $1/s$。
+    *   **輸出**: 最終轉為 **rad/s (角速率)** 命令。
+
+#### 3. 運作流程介紹 (Workflow)
 1.  **誤差計算**: 系統計算目標四元數與當前四元數的差異 $q_e$。
 2.  **提取特徵**: 分別提取四元數的實部與虛部。
 3.  **路徑優化**: 透過 $\text{sgn}(q_{0e})$ 處理，保證飛行器總是沿著最短的角度轉向目標。
@@ -400,7 +432,23 @@ Multicopter Attitude Controller
 ---
 ### Acceleration to Thrust & Attitude Conversion
 
-速度控制器產生的 **加速度設定值 (Acceleration Setpoints)** 需轉換為 **推力 (Thrust)** 與 **姿態 (Attitude)** 設定值才能控制飛行器。
+> **對應總覽圖**: 在最上方的 Multicopter Control Architecture 圖中，這個區塊對應的是中間那個 **"Acceleration and Yaw to Attitude"** 的大方塊。它負責將單一的加速度向量拆解成兩條路徑。
+
+速度控制器產生的 **加速度設定值 (Acceleration Setpoints)** 是一個 3D 向量，需被分解為 **大小** 與 **方向** 才能控制飛行器 (如下圖邏輯)：
+
+1.  **Extract magnitude (提取大小/模長)**:
+    *   **動作**: 計算加速度向量的長度 $\|\mathbf{a}_{sp}\|$。
+    *   **物理意義**: 「需要出多少力？」。決定油門大小。
+    *   **結果**: 輸出 **推力設定值 ($T_{sp}$)**。若要猛烈加速，向量越長，推力越大。
+2.  **Extract component (提取分量/方向)**:
+    *   **動作**: 計算加速度向量的單位方向 $\frac{\mathbf{a}_{sp}}{\|\mathbf{a}_{sp}\|}$。
+    *   **物理意義**: 「機身該往哪邊傾斜？」。因為多旋翼必須靠傾斜才能產生水平加速度。
+    *   **結果**: 結合目前的 Yaw，轉換為 **姿態四元數設定值 ($\mathbf{q}_{sp}$)**。
+
+> **譬喻 (Analogy)**:
+> 就像騎機車過彎：
+> *   **Magnitude**: 你右手催油門的力道 (決定衝多快)。
+> *   **Component**: 你身體壓車傾斜的角度 (決定往哪轉)。
 
 #### 1. 優先權邏輯 (Priority Logic)
 轉換後的加速度設定值會進行飽和限制 (Saturation)，且具有特定的優先順序：
@@ -475,7 +523,9 @@ Multicopter Attitude Controller
 #### 核心重點 (Key Takeaway)
 這張圖是 **位置 (Position)** 與 **速度 (Velocity)** 控制器的合體版，但多了一個非常重要的細節：**前饋控制 (Feedforward, FF)**。
 
-*   **前饋路徑 ($\mathbf{v}_{ff}$ 與 $\mathbf{a}_{ff}$)**：
+*   **前饋路徑 (Feedforward Path)**：
+    *   **名詞定義**: **Feedforward (前饋)** 是控制理論術語，指不依賴感測器回授，直接根據模型預測輸出的機制。
+    *   **動作描述**: 訊號由輸入端 **Feed forward (向前饋送)** 至輸出端。
     *   圖中顯示，來自軌跡規劃器 (Trajectory Planner) 的 **預期速度 ($\mathbf{v}_{ff}$)** 與 **預期加速度 ($\mathbf{a}_{ff}$)** 會**直接加入**到 Setpoint 中。
     *   **$\mathbf{v}_{ff}$**: 直接加在速度控制器的輸入端。如果不加這項，無人機必須先產生位置誤差 ($\Delta \mathbf{r}$) 才能有速度命令，這會導致追蹤延遲。加上 $\mathbf{v}_{ff}$ 後，無人機可以在誤差發生前就先動起來。
     *   **$\mathbf{a}_{ff}$**: 直接加在輸出端。這讓 PID 控制器只需要負責修正「殘餘誤差」，而不需要去產生全部的加速度。
