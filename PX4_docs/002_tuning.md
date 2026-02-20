@@ -47,3 +47,5 @@ Additional notes:
 ---
 ## MC Filter/Control Latency Tuning
 - 在「控制響應速度 (Latency)」與「雜訊濾波 (Noise Filtering)」之間做取捨。濾波越強，雜訊越少但延遲越高 (飛起來手感笨重)。
+
+1
