@@ -37,15 +37,33 @@ The test steps are:
 3. Enable autotune.
 4. 飛機會**自動依序**完成 Roll $\to$ Pitch $\to$ Yaw 的所有測試 (Rate + Attitude)。過程約 40 秒，等待直到 QGC 顯示 "Success"。
 ![alt text](image-22.png)
-5. 降落, armed, 在緩緩起飛測試效果 
+5. 降落, disarm, 在緩緩起飛測試效果 
 
 Additional notes:
-- position穩定也可透過位置模式autotuning
+- if position mode 穩定也可在該模式下autotuning
 - 可以透過參數配置在飛行中還是著陸後進行調優, 參考[troubleshooting](https://docs.px4.io/main/en/config/autotune_mc#troubleshooting)
-- fixwing 在空中套用新參數
 
+## Autotuning Large Vehicles
+- [info](https://docs.px4.io/main/en/config/autotune_mc#autotuning-large-vehicles)
 ---
 ## MC Filter/Control Latency Tuning
 - 在「控制響應速度 (Latency)」與「雜訊濾波 (Noise Filtering)」之間做取捨。濾波越強，雜訊越少但延遲越高 (飛起來手感笨重)。
 
-1
+---
+## Multicopter PID Tuning Guide (Manual/Basic)
+- [info](https://docs.px4.io/main/en/config_mc/pid_tuning_guide_multicopter_basic)
+- Tuning, fromt Base controller to Top controller ：
+    1. Rate controllers
+    2. Attitude controllers
+    3. Velocity controllers
+    4. Position controllers
+
+1. Rate controllers tuning
+- 依序進行[info](https://docs.px4.io/main/en/config_mc/pid_tuning_guide_multicopter_basic#tuning-procedure)
+
+- info
+    - 動力系統thrust output調整為線性輸出, 
+        - 對於 PWM 控制的motor，0.3 是一個不錯的預設值
+        - 對於基於轉速的控制器，使用 1.0
+    - 更多調整參考[thrust curve](https://docs.px4.io/main/en/config_mc/pid_tuning_guide_multicopter#thrust-curve)
+

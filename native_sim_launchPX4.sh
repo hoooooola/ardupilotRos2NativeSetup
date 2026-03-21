@@ -45,10 +45,16 @@ tmux send-keys -t $SESSION:0 "make px4_sitl gazebo" C-m
 tmux split-window -h -t $SESSION:0
 tmux send-keys -t $SESSION:0.1 "MicroXRCEAgent udp4 -p 8888" C-m
 
-# Pane 2: ROS 2 Shell (Bottom)
+# Pane 2: Foxglove Bridge (Bottom Left)
 tmux split-window -v -t $SESSION:0.0
-tmux send-keys -t $SESSION:0.2 "source /opt/ros/humble/setup.bash" C-m
-tmux send-keys -t $SESSION:0.2 "echo '✅ ROS 2 Environment Ready! Try: ros2 topic list'" C-m
+tmux send-keys -t $SESSION:0.1 "source /opt/ros/humble/setup.bash" C-m
+tmux send-keys -t $SESSION:0.1 "echo '🚀 Starting Foxglove Bridge...'" C-m
+tmux send-keys -t $SESSION:0.1 "ros2 run foxglove_bridge foxglove_bridge" C-m
+
+# Pane 3: ROS 2 Shell (Bottom Right)
+tmux split-window -v -t $SESSION:0.2
+tmux send-keys -t $SESSION:0.3 "source /opt/ros/humble/setup.bash" C-m
+tmux send-keys -t $SESSION:0.3 "echo '✅ ROS 2 Environment Ready! Try: ros2 topic list'" C-m
 
 # Select Main Pane
 tmux select-pane -t $SESSION:0.0
